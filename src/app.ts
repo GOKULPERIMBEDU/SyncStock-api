@@ -21,6 +21,10 @@ export function createApp() {
   );
   app.use(express.json({ limit: '1mb' }));
 
+  app.get('/', (_req, res) => {
+    res.status(200).send('Immigration Simplified API is awake and running!');
+  });
+
   app.use('/api', routes);
 
   app.use(notFoundHandler);
