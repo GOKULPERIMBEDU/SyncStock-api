@@ -13,6 +13,7 @@ import saleRoutes from './sale.routes';
 import settingRoutes from './setting.routes';
 import staffRoutes from './staff.routes';
 import stockRoutes from './stock.routes';
+import warehouseRoutes from './warehouse.routes';
 
 const router = Router();
 
@@ -35,5 +36,6 @@ router.use('/customers', customerRoutes);
 router.use('/sales', saleRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/settings', settingRoutes);
+router.use('/warehouse', warehouseRoutes);
 
 export default router;

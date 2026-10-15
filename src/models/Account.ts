@@ -9,6 +9,8 @@ export interface IAccount {
   date: Date;
   description: string;
   orderRef?: Types.ObjectId;
+  /** Invoice a CREDIT was received for (sales invoices live in `sales`, not `orders`). */
+  saleRef?: Types.ObjectId;
 }
 
 export interface IAccountDocument extends IAccount, Document {
@@ -24,6 +26,7 @@ const accountSchema = new Schema<IAccountDocument>(
     date: { type: Date, required: true, default: Date.now },
     description: { type: String, required: true, trim: true },
     orderRef: { type: Schema.Types.ObjectId, ref: 'Order' },
+    saleRef: { type: Schema.Types.ObjectId, ref: 'Sale', index: true },
   },
   { timestamps: true }
 );

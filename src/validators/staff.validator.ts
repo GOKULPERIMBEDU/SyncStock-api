@@ -1,9 +1,12 @@
 import { z } from 'zod';
 
+/** `Standard` is the legacy label for `Staff`; it is still accepted on input and stored as `Staff`. */
+const role = z.enum(['Admin', 'Manager', 'Staff', 'Standard']).transform((value) => (value === 'Standard' ? ('Staff' as const) : value));
+
 const staffBody = {
   name: z.string().trim().min(1),
   email: z.string().trim().email(),
-  role: z.enum(['Admin', 'Manager', 'Standard']),
+  role,
   status: z.enum(['Active', 'Inactive']).optional(),
   joinedDate: z.coerce.date().optional(),
 };
@@ -17,7 +20,7 @@ export const updateStaffSchema = z.object({
   body: z.object({
     name: z.string().trim().min(1).optional(),
     email: z.string().trim().email().optional(),
-    role: z.enum(['Admin', 'Manager', 'Standard']).optional(),
+    role: role.optional(),
     status: z.enum(['Active', 'Inactive']).optional(),
     joinedDate: z.coerce.date().optional(),
   }),

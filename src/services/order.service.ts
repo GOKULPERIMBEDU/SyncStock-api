@@ -64,7 +64,12 @@ export class OrderService {
     return deleted;
   }
 
-  async receive(id: string) {
+  /**
+   * Receives goods against a purchase order: `all` books in every open line, otherwise `quantity` units (default 1) of
+   * the next open line. Each stock-in also raises / extends the inbound yard shipment for this order, which a dock,
+   * a truck and a forklift then work (the "Receive / Put-Away" action).
+   */
+  async receive(id: string, siteCode?: string, options: { quantity?: number; all?: boolean } = {}) {
     const order = await this.getById(id);
     if (order.kind !== 'PURCHASE') {
       throw new AppError(400, 'Only purchase orders can be received into stock');
@@ -82,16 +87,31 @@ export class OrderService {
       unitPrice: item.unitPrice,
     }));
 
-    const line = items.find((item) => item.received < item.quantity);
-    if (!line) {
+    const openLines = items.filter((item) => item.received < item.quantity);
+    if (openLines.length === 0) {
       throw new AppError(409, 'All line items are already received');
     }
 
-    line.received += 1;
-    await stockService.restock(line.productId, {
-      quantity: 1,
-      reason: `Receive ${order.orderNumber}`,
-    });
+    const plan = options.all
+      ? openLines.map((line) => ({ line, units: line.quantity - line.received }))
+      : [{ line: openLines[0], units: Math.min(Math.max(1, options.quantity ?? 1), openLines[0].quantity - openLines[0].received) }];
+    const expectedUnits = items.reduce((sum, item) => sum + item.quantity, 0);
+
+    for (const { line, units } of plan) {
+      line.received += units;
+      await stockService.restock(
+        line.productId,
+        {
+          quantity: units,
+          reason: `Receive ${order.orderNumber}`,
+        },
+        undefined,
+        {
+          siteCode,
+          source: { kind: 'PURCHASE', ref: order.orderNumber, partyName: order.partyName, id: String(order._id), expectedUnits },
+        }
+      );
+    }
 
     const receivedAll = items.every((item) => item.received >= item.quantity);
     return orderRepository.updateById(id, {

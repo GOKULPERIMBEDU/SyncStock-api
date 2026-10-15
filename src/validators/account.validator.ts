@@ -8,6 +8,7 @@ export const createAccountSchema = z.object({
     date: z.coerce.date().optional(),
     description: z.string().trim().min(1),
     orderRef: z.string().min(1).optional(),
+    saleRef: z.string().min(1).optional(),
   }),
 });
 
@@ -19,5 +20,6 @@ export const updateAccountSchema = z.object({
     date: z.coerce.date().optional(),
     description: z.string().trim().min(1).optional(),
     orderRef: z.string().min(1).optional(),
+    saleRef: z.string().min(1).optional(),
   }),
 });

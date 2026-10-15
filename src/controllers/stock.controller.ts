@@ -2,15 +2,16 @@ import type { Request, Response } from 'express';
 import { stockService } from '../services/stock.service';
 import type { MovementType } from '../types';
 import { ok } from '../utils/response';
+import { siteFromRequest } from '../utils/site';
 
 export class StockController {
   restock = async (req: Request, res: Response): Promise<void> => {
-    const result = await stockService.restock(req.params.productId, req.body, req.user?.id);
+    const result = await stockService.restock(req.params.productId, req.body, req.user?.id, { siteCode: siteFromRequest(req) });
     ok(res, result, 201);
   };
 
   dispatch = async (req: Request, res: Response): Promise<void> => {
-    const result = await stockService.dispatch(req.params.productId, req.body, req.user?.id);
+    const result = await stockService.dispatch(req.params.productId, req.body, req.user?.id, { siteCode: siteFromRequest(req) });
     ok(res, result, 201);
   };
 

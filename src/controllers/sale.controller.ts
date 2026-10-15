@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import { saleService } from '../services/sale.service';
 import { AppError } from '../utils/AppError';
 import { ok } from '../utils/response';
+import { siteFromRequest } from '../utils/site';
 
 export class SaleController {
   create = async (req: Request, res: Response): Promise<void> => {
@@ -10,6 +11,7 @@ export class SaleController {
       customerRef: req.body.customerRef,
       items: req.body.items,
       createdBy: req.user.id,
+      siteCode: siteFromRequest(req),
     });
     ok(res, sale, 201);
   };

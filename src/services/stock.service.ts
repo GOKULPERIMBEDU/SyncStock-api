@@ -9,9 +9,14 @@ import {
 import type { AdjustStockInput, StockChangeInput } from '../types';
 import { AppError } from '../utils/AppError';
 import { emailService } from './email.service';
+import { yardAfterStockIn, yardAfterStockOut, type YardHookOptions } from './yard/bridge';
 
 export class StockService {
-  async restock(productId: string, input: StockChangeInput, handledBy?: string) {
+  /**
+   * Stock-in. After the ledger write, the yard bridge raises (or extends) an inbound shipment so a truck, a bay and a
+   * forklift physically receive the goods. `yard` carries the purchase receipt context when it comes from an order.
+   */
+  async restock(productId: string, input: StockChangeInput, handledBy?: string, yard?: YardHookOptions) {
     await this.requireProduct(productId);
 
     const updated = await productRepository.incrementStock(productId, input.quantity);
@@ -30,6 +35,10 @@ export class StockService {
     });
 
     await this.maybeAlertLowStock(updated, previousStock);
+    await yardAfterStockIn(
+      { productId: updated._id as Types.ObjectId, sku: updated.sku, quantity: input.quantity, movementId: movement._id as Types.ObjectId },
+      yard
+    );
 
     return { product: updated, movement };
   }
@@ -37,8 +46,9 @@ export class StockService {
   /**
    * Dispatch uses an atomic filter (`currentStock >= quantity`) so two concurrent
    * OUT requests cannot both succeed if that would take stock below zero.
+   * The yard bridge then raises an outbound shipment for the goods.
    */
-  async dispatch(productId: string, input: StockChangeInput, handledBy?: string) {
+  async dispatch(productId: string, input: StockChangeInput, handledBy?: string, yard?: YardHookOptions) {
     const existing = await this.requireProduct(productId);
 
     const updated = await productRepository.decrementIfSufficient(productId, input.quantity);
@@ -60,6 +70,10 @@ export class StockService {
     });
 
     await this.maybeAlertLowStock(updated, previousStock);
+    await yardAfterStockOut(
+      { productId: updated._id as Types.ObjectId, sku: updated.sku, quantity: input.quantity, movementId: movement._id as Types.ObjectId },
+      yard
+    );
 
     return { product: updated, movement };
   }

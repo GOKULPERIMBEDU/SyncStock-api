@@ -9,9 +9,11 @@ import { Payment } from './models/Payment';
 import { Product } from './models/Product.model';
 import { Sale } from './models/Sale';
 import { Staff } from './models/Staff';
+import { MigrationRecord } from './models/MigrationRecord';
 import { StockMovement } from './models/StockMovement.model';
 import { SystemSetting } from './models/SystemSetting';
 import { User } from './models/User';
+import { runMigrations } from './migrations/runner';
 
 function id(): Types.ObjectId {
   return new Types.ObjectId();
@@ -50,6 +52,7 @@ async function seed(): Promise<void> {
     Payment.deleteMany({}),
     Account.deleteMany({}),
     StockMovement.deleteMany({}),
+    MigrationRecord.deleteMany({}),
   ]);
   console.log('[seed] Cleared all collections');
 
@@ -86,8 +89,8 @@ async function seed(): Promise<void> {
     { _id: staffIds[0], name: 'Perimbedu Gokul', email: 'gokulperimbedu@gmail.com', role: 'Admin', status: 'Active', joinedDate: new Date('2024-01-12') },
     { _id: staffIds[1], name: 'Arun', email: 'arun@syncstock.io', role: 'Manager', status: 'Active', joinedDate: new Date('2024-03-04') },
     { _id: staffIds[2], name: 'Priya Sharma', email: 'priya.sharma@syncstock.io', role: 'Manager', status: 'Active', joinedDate: new Date('2024-06-18') },
-    { _id: staffIds[3], name: 'Karthik', email: 'karthik@syncstock.io', role: 'Standard', status: 'Active', joinedDate: new Date('2025-02-09') },
-    { _id: staffIds[4], name: 'Meera Iyer', email: 'meera.iyer@syncstock.io', role: 'Standard', status: 'Inactive', joinedDate: new Date('2023-11-21') },
+    { _id: staffIds[3], name: 'Karthik', email: 'karthik@syncstock.io', role: 'Staff', status: 'Active', joinedDate: new Date('2025-02-09') },
+    { _id: staffIds[4], name: 'Meera Iyer', email: 'meera.iyer@syncstock.io', role: 'Staff', status: 'Inactive', joinedDate: new Date('2023-11-21') },
   ]);
 
   const productIds = Array.from({ length: 15 }, id);
@@ -277,11 +280,11 @@ async function seed(): Promise<void> {
     { userRef: staffId, title: 'Shift reminder', message: 'Receive remaining Keychron units on ORD-10503 before close.', isRead: true, date: new Date('2026-09-19T18:00:00.000Z') },
   ]);
 
-  await SystemSetting.create({
-    companyName: 'SyncStock India Pvt Ltd',
-    currency: 'INR',
-    taxRate: 18,
-  });
+  // The migration runner finishes the job exactly as it does on an existing database: workspace profiles, role
+  // normalisation, ledger reconciliation (INV-008 stock-out, Keychron, ORD-1104) and the ledger-linked yard layer.
+  const migrations = await runMigrations();
+  if (migrations.failed) throw new Error(`Migration ${migrations.failed} failed`);
+  console.log(`[seed] Applied migrations: ${migrations.applied.join(', ')}`);
 
   console.log('[seed] Demo users:');
   console.log('  Admin   gokulperimbedu@gmail.com   Admin@12345');

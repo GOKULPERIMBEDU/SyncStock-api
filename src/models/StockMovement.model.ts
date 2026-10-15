@@ -9,6 +9,10 @@ export interface IStockMovement {
   previousStock: number;
   newStock: number;
   handledBy?: Types.ObjectId;
+  /** Yard-plane link, filled in when the movement is realised as a shipment at a facility. */
+  siteCode?: string;
+  shipmentCode?: string;
+  truckCode?: string;
 }
 
 export interface IStockMovementDocument extends IStockMovement, Document {
@@ -25,6 +29,9 @@ const stockMovementSchema = new Schema<IStockMovementDocument>(
     previousStock: { type: Number, required: true, min: 0 },
     newStock: { type: Number, required: true, min: 0 },
     handledBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    siteCode: { type: String, trim: true, uppercase: true },
+    shipmentCode: { type: String, trim: true, uppercase: true },
+    truckCode: { type: String, trim: true, uppercase: true },
   },
   { timestamps: true }
 );

@@ -6,11 +6,14 @@ import { saleRepository } from '../repositories/sale.repository';
 import { stockMovementRepository } from '../repositories/stockMovement.repository';
 import { AppError } from '../utils/AppError';
 import { emailService } from './email.service';
+import { yardAfterSale, type YardLedgerLine } from './yard/bridge';
 
 export interface CreateSaleInput {
   customerRef: string;
   items: Array<{ productRef: string; qty: number; price?: number }>;
   createdBy: string;
+  /** Facility that fulfils the invoice; defaults to the primary site. */
+  siteCode?: string;
 }
 
 export class SaleService {
@@ -27,6 +30,7 @@ export class SaleService {
     const invoiceNumber = await saleRepository.nextInvoiceNumber();
     const lines: Array<{ productRef: Types.ObjectId; qty: number; price: number }> = [];
     const deducted: Array<{ productId: string; qty: number }> = [];
+    const yardLines: YardLedgerLine[] = [];
 
     try {
       for (const item of input.items) {
@@ -44,7 +48,7 @@ export class SaleService {
         }
 
         const previousStock = updated.currentStock + item.qty;
-        await stockMovementRepository.create({
+        const movement = await stockMovementRepository.create({
           productId: updated._id,
           quantity: item.qty,
           type: 'OUT',
@@ -52,6 +56,12 @@ export class SaleService {
           previousStock,
           newStock: updated.currentStock,
           handledBy: new Types.ObjectId(input.createdBy),
+        });
+        yardLines.push({
+          productId: updated._id as Types.ObjectId,
+          sku: updated.sku,
+          quantity: item.qty,
+          movementId: movement._id as Types.ObjectId,
         });
 
         if (updated.currentStock <= updated.lowStockThreshold) {
@@ -78,7 +88,7 @@ export class SaleService {
 
       const totalAmount = lines.reduce((sum, line) => sum + line.qty * line.price, 0);
 
-      return await saleRepository.create({
+      const sale = await saleRepository.create({
         invoiceNumber,
         customerRef: new Types.ObjectId(input.customerRef),
         items: lines,
@@ -86,6 +96,14 @@ export class SaleService {
         status: 'COMPLETE',
         createdBy: new Types.ObjectId(input.createdBy),
       });
+
+      // The invoice is committed; now the yard turns it into an outbound shipment (never throws).
+      await yardAfterSale(
+        { invoiceNumber, saleId: String(sale._id), customerName: customer.name, lines: yardLines },
+        { siteCode: input.siteCode }
+      );
+
+      return sale;
     } catch (error) {
       await Promise.all(deducted.map((row) => productRepository.incrementStock(row.productId, row.qty)));
       throw error;

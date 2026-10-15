@@ -29,6 +29,18 @@ export const updateOrderSchema = z.object({
   }),
 });
 
+/** `POST /orders/:id/receive`: both fields are optional; an empty body receives one unit of the next open line. */
+export const receiveOrderSchema = z.object({
+  params: z.object({ id: z.string().min(1) }),
+  body: z
+    .object({
+      quantity: z.number().int().positive().max(100000).optional(),
+      all: z.boolean().optional(),
+    })
+    .optional()
+    .default({}),
+});
+
 export const orderListQuerySchema = z.object({
   query: z.object({
     kind: z.enum(['PURCHASE', 'SALE']).optional(),
